@@ -1,9 +1,33 @@
 import { chromium } from "playwright";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const BASE = "http://localhost:5173";
 const SHOT = process.env.SHOT_DIR ?? "C:\\Users\\divya\\AppData\\Local\\Temp\\opencode\\shots";
 
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// The real login is Google OAuth (interactive). For automation we mint a
+// dev JWT with the same secret the API validates against, then seed it
+// into localStorage before the app loads — identical to a successful callback.
+async function seedToken(page) {
+  const { default: jwt } = await import("../../backend/node_modules/jsonwebtoken/index.js");
+  const envPath = path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    "../../backend/.env.local"
+  );
+  const secret = (readFileSync(envPath, "utf8").match(/^JWT_SECRET=(.+)$/m) ?? [])[1];
+  if (!secret) throw new Error("JWT_SECRET not found in backend/.env.local");
+  const token = jwt.sign(
+    { sub: "e2e-user", email: "e2e@test.local", name: "E2E User", avatar: null },
+    secret.trim(),
+    { expiresIn: "1h" }
+  );
+  await page.context().addInitScript((tok) => {
+    localStorage.setItem("reachinbox_token", tok);
+  }, token);
+}
 
 async function main() {
   const browser = await chromium.launch();
@@ -14,20 +38,15 @@ async function main() {
   });
   page.on("pageerror", (err) => console.log("[pageerror]", err.message));
 
+  await seedToken(page);
   await page.goto(BASE);
-  await page.waitForURL("**/login");
-  await page.screenshot({ path: `${SHOT}\\01-login.png` });
-  console.log("login page OK");
-
-  await page.getByRole("button", { name: /Use demo account/ }).click();
   await page.waitForURL("**/dashboard");
   await page.waitForSelector("text=Compose New Email");
-  await delay(800);
-  await page.screenshot({ path: `${SHOT}\\02-dashboard.png` });
+  await page.screenshot({ path: `${SHOT}\\01-dashboard.png` });
   const headerText = await page.locator("header").innerText();
-  console.log("dashboard OK, header contains demo:", headerText.includes("Demo User"));
+  console.log("dashboard OK, header contains E2E user:", headerText.includes("E2E User"));
 
-  await page.getByRole("button", { name: /Compose New Email/ }).click();
+  await page.getByRole("button", { name: /Compose New Email/ }).first().click();
   await page.waitForSelector("text=Compose new email");
   await page.getByLabel("Subject").fill("E2E campaign from Playwright");
   await page.getByLabel("Body").fill("<p>Hello! This was scheduled end-to-end.</p>");
@@ -61,7 +80,21 @@ async function main() {
   await page.screenshot({ path: `${SHOT}\\05-search.png` });
   console.log("search executed");
 
-  await delay(35_000);
+  // Wait (up to 2 min) until the batch is actually delivered — deterministic
+  // regardless of scheduledAt offset + min-delay spacing.
+  await page.waitForFunction(
+    async () => {
+      const res = await fetch("/api/emails/sent?size=50", {
+        headers: { Authorization: `Bearer ${localStorage.getItem("reachinbox_token")}` },
+      });
+      if (!res.ok) return false;
+      const json = await res.json();
+      return (json.data ?? []).some((e) => e.recipient.includes("playwright.io"));
+    },
+    { timeout: 120_000 }
+  );
+  console.log("delivery confirmed via API");
+
   // Clear the search so the table under test is the tab's own table.
   await page.getByPlaceholder("Search sent & scheduled").fill("");
   await delay(600);

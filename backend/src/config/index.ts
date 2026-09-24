@@ -63,7 +63,6 @@ export const config = {
     googleRedirectUri:
       process.env.GOOGLE_REDIRECT_URI ?? `${process.env.BACKEND_URL ?? "http://localhost:4000"}/api/auth/google/callback`,
     jwtSecret: required("JWT_SECRET", "dev-secret-change-me"),
-    demoMode: (process.env.AUTH_DEMO_MODE ?? "false") === "true",
   },
 
   slack: {

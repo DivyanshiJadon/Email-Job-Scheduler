@@ -1,24 +1,24 @@
 import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { setToken } from "../lib/api";
 
 /**
  * Landing page for the Google OAuth redirect back from the backend.
- * The backend appends ?token=... — we store it and go to the dashboard.
+ * The backend appends ?token=... — we persist it and do a full redirect so
+ * the app re-boots with the token already in localStorage (avoids a router
+ * render firing RequireAuth before the token write is visible).
  */
 export function AuthRedirect() {
-  const navigate = useNavigate();
-
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const token = params.get("token");
+    const error = params.get("error");
     if (token) {
       setToken(token);
-      navigate("/dashboard", { replace: true });
+      window.location.replace("/dashboard");
     } else {
-      navigate("/login", { replace: true });
+      window.location.replace(error ? `/login?error=${encodeURIComponent(error)}` : "/login");
     }
-  }, [navigate]);
+  }, []);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-ink-900 text-ink-400">

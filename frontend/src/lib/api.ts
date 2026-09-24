@@ -102,9 +102,6 @@ export const api = {
       // Full browser redirect to the real Google OAuth flow.
       window.location.assign("/api/auth/google");
     },
-    demo(): Promise<{ user: AuthUser; token: string }> {
-      return request("/auth/demo", { method: "POST", auth: false });
-    },
     me(): Promise<UserResponse> {
       return request<UserResponse>("/auth/me");
     },

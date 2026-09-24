@@ -1,27 +1,18 @@
-import { useEffect, useState } from "react";
 import { Button } from "../components/Button";
 import { api } from "../lib/api";
-import { setToken } from "../lib/api";
 
 export function LoginPage() {
-  const [demoing, setDemoing] = useState(false);
+  const params = new URLSearchParams(window.location.search);
+  const error = params.get("error");
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("error") === "google_denied") {
-      // Show inline hint if Google flow was cancelled.
-    }
-  }, []);
-
-  async function handleDemo() {
-    setDemoing(true);
-    try {
-      const res = await api.auth.demo();
-      setToken(res.token);
-      window.location.assign("/dashboard");
-    } catch {
-      setDemoing(false);
-    }
+  let errorMessage: string | null = null;
+  if (error === "google_denied") {
+    errorMessage = "Google sign-in was cancelled. Please try again.";
+  } else if (error === "google_failed") {
+    errorMessage = "Google sign-in failed. Please try again.";
+  } else if (error === "not_configured") {
+    errorMessage =
+      "Google login isn't configured yet. Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in backend/.env.local, then restart the API.";
   }
 
   return (
@@ -43,17 +34,14 @@ export function LoginPage() {
             Continue with Google
           </Button>
 
-          <div className="my-5 flex items-center gap-3 text-[11px] uppercase tracking-wider text-ink-500">
-            <span className="h-px flex-1 bg-ink-700" /> or <span className="h-px flex-1 bg-ink-700" />
-          </div>
-
-          <Button variant="secondary" size="lg" className="w-full" onClick={handleDemo} loading={demoing}>
-            Use demo account (no Google)
-          </Button>
+          {errorMessage && (
+            <p className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-center text-xs leading-relaxed text-red-300">
+              {errorMessage}
+            </p>
+          )}
 
           <p className="mt-4 text-center text-[11px] leading-relaxed text-ink-500">
-            Google login is the real OAuth 2.0 flow. The demo button is only enabled when{" "}
-            <code className="rounded bg-ink-800 px-1 text-brand-300">AUTH_DEMO_MODE=true</code>.
+            Sign in with your Google account to manage your email campaigns.
           </p>
         </div>
       </div>

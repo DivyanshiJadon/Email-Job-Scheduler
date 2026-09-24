@@ -37,18 +37,23 @@ export function verifyToken(token: string): AppJwtPayload | null {
   }
 }
 
+export function googleOAuthConfigured(): boolean {
+  return Boolean(config.auth.googleClientId && config.auth.googleClientSecret);
+}
+
 export function setupPassport(): void {
-  if (!config.auth.googleClientId || !config.auth.googleClientSecret) {
-    console.warn("[auth] GOOGLE_CLIENT_ID/SECRET not set — Google OAuth disabled.");
+  const { googleClientId, googleClientSecret, googleRedirectUri } = config.auth;
+  if (!googleClientId || !googleClientSecret) {
+    console.warn("[auth] GOOGLE_CLIENT_ID/SECRET not set — Google OAuth disabled. Login page will show a setup hint.");
     return;
   }
 
   passport.use(
     new GoogleStrategy(
       {
-        clientID: config.auth.googleClientId,
-        clientSecret: config.auth.googleClientSecret,
-        callbackURL: config.auth.googleRedirectUri,
+        clientID: googleClientId,
+        clientSecret: googleClientSecret,
+        callbackURL: googleRedirectUri,
       },
       async (accessToken, refreshToken, profile: Profile, done) => {
         try {
@@ -78,23 +83,4 @@ export function setupPassport(): void {
       }
     )
   );
-}
-
-/**
- * Dev-only convenience: creates/demos a fixed user so the dashboard is fully
- * testable without Google credentials. NEVER enabled in production.
- */
-export async function demoUser(): Promise<User> {
-  const repo = AppDataSource.getRepository(User);
-  let user = await repo.findOne({ where: { email: "demo@reachinbox.local" } });
-  if (!user) {
-    user = repo.create({
-      googleId: null,
-      email: "demo@reachinbox.local",
-      name: "Demo User",
-      avatarUrl: null,
-    });
-    user = await repo.save(user);
-  }
-  return user;
 }

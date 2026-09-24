@@ -192,8 +192,7 @@ npm run dev
 | `EMAIL_FROM` | | optional From override |
 | **Auth** | | |
 | `JWT_SECRET` | *(required)* | JWT signing |
-| `GOOGLE_CLIENT_ID/SECRET` | | real Google OAuth |
-| `AUTH_DEMO_MODE` | false | **dev-only** non-Google login fallback |
+| `GOOGLE_CLIENT_ID/SECRET` | *(required)* | Google OAuth login |
 | **Slack** | | |
 | `SLACK_CLIENT_ID/SECRET` | | Slack app for rate-limit alerts |
 | `SLACK_CHANNEL` | #reachinbox-alerts | default alert channel |
@@ -233,13 +232,11 @@ GOOGLE_CLIENT_ID=xxxx.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=GOCSPX-xxxx
 ```
 
-5. Restart the API. "Continue with Google" now runs the real OAuth flow and
+5. Restart the API (Google OAuth is now the **only** login — there is no
+   demo/fallback login). "Continue with Google" runs the real OAuth flow and
    lands on `/auth?token=…` → dashboard (name, email, avatar in the header).
-
-> `AUTH_DEMO_MODE=true` (already set in `.env.example`) additionally
-> exposes a `Use demo account` button so the dashboard is browsable without
-> Google credentials. It is a **development convenience** — remove it for
-> production. Google OAuth itself is fully implemented.
+6. Until the credentials are set, clicking the button redirects to the login
+   page with a setup hint instead of failing with an error.
 
 ---
 
@@ -350,7 +347,6 @@ All `/api/*` routes except `/auth/google*` and `/slack/oauth/callback` require `
 | GET | `/api/health` | liveness |
 | GET | `/api/auth/google` | start Google OAuth |
 | GET | `/api/auth/google/callback` | OAuth callback → JWT → frontend |
-| POST | `/api/auth/demo` | dev-only demo token (`AUTH_DEMO_MODE`) |
 | GET | `/api/auth/me` | current user |
 | POST | `/api/emails/schedule` | schedule a batch |
 | GET | `/api/emails/scheduled` | pending/deferred jobs |
@@ -430,8 +426,9 @@ sent tab) and writes screenshots to `$SHOT_DIR`.
 - **Schema on one "hour window"** (UTC calendar hour) rather than a sliding
   window — cheaper and matches "next available hour window" semantics.
 - **Auth**: Google OAuth is implemented with passport JWT issuance and no
-  server session store; a clearly-marked `AUTH_DEMO_MODE` fallback exists for
-  local work without Google credentials (disabled by default in real deploys).
+  server session store. It is the only login; no demo fallback exists.
+  Errors redirect back to the login page with a readable hint instead of
+  exposing raw JSON.
 - **Slack** is app-level (bot token per user) rather than incoming-webhooks,
   because the assignment explicitly asks for a real OAuth authorize flow.
 - **Ethereal account sharing**: Ethereal sometimes returns the same account

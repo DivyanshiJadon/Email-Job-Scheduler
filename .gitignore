@@ -2,6 +2,11 @@
 node_modules/
 dist/
 build/
+*.tsbuildinfo
+
+# Generated from tsc -b of vite.config.ts
+frontend/vite.config.js
+frontend/vite.config.d.ts
 
 # Env & secrets
 .env

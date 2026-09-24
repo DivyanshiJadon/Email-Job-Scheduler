@@ -1,0 +1,23 @@
+# Node
+node_modules/
+dist/
+build/
+
+# Env & secrets
+.env
+.env.local
+.ethereal-accounts.json
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Playwright
+test-results/
+playwright-report/

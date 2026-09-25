@@ -13,6 +13,7 @@ export const AppDataSource = new DataSource({
   username: config.db.user,
   password: config.db.password,
   database: config.db.database,
+  ...(config.db.ssl ? { ssl: { rejectUnauthorized: false } } : {}),
   entities: [User, Sender, EmailJob, SlackIntegration],
   synchronize: true,
   charset: "utf8mb4_unicode_ci",

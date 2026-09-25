@@ -31,6 +31,7 @@ export const config = {
     user: process.env.DB_USER ?? "reachinbox",
     password: process.env.DB_PASSWORD ?? "reachinbox",
     database: process.env.DB_NAME ?? "reachinbox",
+    ssl: process.env.DB_SSL === "true",
   },
 
   elasticsearch: {

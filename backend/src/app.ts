@@ -1,5 +1,7 @@
 import express, { Express } from "express";
 import cors from "cors";
+import fs from "fs";
+import path from "path";
 import passport from "passport";
 import { createBullBoard } from "@bull-board/api";
 import { BullMQAdapter } from "@bull-board/api/bullMQAdapter";
@@ -10,6 +12,9 @@ import authRoutes from "./routes/auth.routes";
 import emailRoutes from "./routes/email.routes";
 import searchRoutes from "./routes/search.routes";
 import slackRoutes from "./routes/slack.routes";
+
+/** Built React app, if present (shared hosting with the API, same origin). */
+const frontendDist = path.resolve(__dirname, "../../frontend/dist");
 
 export function createApp(): Express {
   const app = express();
@@ -40,6 +45,13 @@ export function createApp(): Express {
     serverAdapter,
   });
   app.use("/admin/queues", serverAdapter.getRouter());
+
+  if (fs.existsSync(frontendDist)) {
+    app.use(express.static(frontendDist));
+    app.get(/^\/(?!api|admin\/).*/, (_req, res) => {
+      res.sendFile(path.join(frontendDist, "index.html"));
+    });
+  }
 
   // 404 + error handler
   app.use((_req, res) => {

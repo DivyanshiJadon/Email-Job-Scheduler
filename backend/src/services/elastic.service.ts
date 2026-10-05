@@ -2,7 +2,7 @@ import { Client } from "@elastic/elasticsearch";
 import { config } from "../config";
 import { AppDataSource } from "../db/typeorm";
 import { EmailJob } from "../db/entities/EmailJob";
-import { logError, logInfo } from "../utils/logger";
+import { logError, logInfo, logWarn } from "../utils/logger";
 
 let client: Client | null = null;
 let indexReady = false;
@@ -53,10 +53,12 @@ export async function ensureIndex(): Promise<void> {
         },
       });
       logInfo("elasticsearch", `created index ${config.elasticsearch.index}`);
+      noteEsResult(true);
     }
     indexReady = true;
   } catch (err) {
     logError("elasticsearch", "ensureIndex failed (will retry on next call)", err);
+    noteEsResult(false);
   }
 }
 
@@ -93,7 +95,80 @@ export interface SearchResult {
   hits: Array<EmailDocument & { score?: number }>;
 }
 
+/**
+ * Whether the cluster answered on the last probe. Search falls back to the
+ * database when this is false so a dead/unprovisioned cluster degrades search
+ * instead of breaking it.
+ */
+let esReachable: boolean | null = null;
+
+export function isSearchDegraded(): boolean {
+  return esReachable === false;
+}
+
+/** Mark the cluster up/down based on the outcome of a call. */
+function noteEsResult(ok: boolean): void {
+  if (esReachable === ok) return;
+  esReachable = ok;
+  if (ok) logInfo("elasticsearch", "cluster reachable; using Elasticsearch for search");
+  else logWarn("elasticsearch", "cluster unreachable; falling back to database search");
+}
+
+/**
+ * Substring search straight against the DB. Postgres and MySQL both support
+ * ILIKE / LIKE, so this is driver-agnostic. Slightly less clever than the
+ * Elasticsearch fuzzy match, but it keeps search working with no extra service.
+ */
+async function searchViaDb(q: string, from: number, size: number): Promise<SearchResult> {
+  const repo = AppDataSource.getRepository(EmailJob);
+  const term = `%${q}%`;
+
+  const base = repo
+    .createQueryBuilder("job")
+    .where("job.recipient LIKE :term", { term })
+    .orWhere("job.subject LIKE :term", { term })
+    .orWhere("job.body LIKE :term", { term });
+
+  const [rows, total] = await base
+    .orderBy("job.scheduledAt", "DESC")
+    .skip(from)
+    .take(size)
+    .getManyAndCount();
+
+  return {
+    total,
+    hits: rows.map((job) => ({
+      jobId: job.id,
+      batchId: job.batchId,
+      userId: job.userId,
+      senderId: job.senderId,
+      recipient: job.recipient,
+      subject: job.subject,
+      body: job.body,
+      status: job.status,
+      scheduledAt: job.scheduledAt instanceof Date ? job.scheduledAt.toISOString() : String(job.scheduledAt),
+      sentAt: job.sentAt instanceof Date ? job.sentAt.toISOString() : job.sentAt ?? null,
+      providerMessageId: job.providerMessageId,
+    })),
+  };
+}
+
 export async function searchEmails(q: string, from = 0, size = 50): Promise<SearchResult> {
+  // A known-dead cluster skips the 5s timeout on every keystroke.
+  if (esReachable !== false) {
+    try {
+      const result = await searchEmailsWithEs(q, from, size);
+      noteEsResult(true);
+      return result;
+    } catch (err) {
+      noteEsResult(false);
+      logWarn("elasticsearch", "search failed; using database fallback", err);
+    }
+  }
+  return searchViaDb(q, from, size);
+}
+
+async function searchEmailsWithEs(q: string, from: number, size: number): Promise<SearchResult> {
   await ensureIndex();
   const es = getEsClient();
   const query = {

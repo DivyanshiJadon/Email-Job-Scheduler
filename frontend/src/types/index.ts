@@ -73,6 +73,8 @@ export interface SearchHit {
 export interface SearchResponse {
   total: number;
   hits: SearchHit[];
+  /** True when Elasticsearch is down and results came from the database. */
+  degraded?: boolean;
 }
 
 export interface SlackStatus {

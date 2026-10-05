@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import { requireAuth } from "../middleware/auth.middleware";
 import { getCachedSenders } from "../services/scheduler.service";
-import { searchEmails, reindexFromDb } from "../services/elastic.service";
+import { searchEmails, reindexFromDb, isSearchDegraded } from "../services/elastic.service";
 
 const router = Router();
 
@@ -13,9 +13,10 @@ router.get("/emails", async (req: Request, res: Response) => {
   const size = Math.min(parseInt((req.query.size as string) ?? "50", 10) || 50, 200);
   try {
     const result = await searchEmails(q, from, size);
-    res.json(result);
+    // Tells the UI to show that results came from the DB, not Elasticsearch.
+    res.json({ ...result, degraded: isSearchDegraded() });
   } catch (err) {
-    res.status(500).json({ error: "Elasticsearch unavailable", detail: err instanceof Error ? err.message : String(err) });
+    res.status(500).json({ error: "Search unavailable", detail: err instanceof Error ? err.message : String(err) });
   }
 });
 

@@ -87,6 +87,7 @@ export function DashboardPage() {
   const [search, setSearch] = useState("");
   const [searchResults, setSearchResults] = useState<SearchHit[]>([]);
   const [searching, setSearching] = useState(false);
+  const [searchDegraded, setSearchDegraded] = useState(false);
 
   useEffect(() => {
     const token = getToken();
@@ -147,6 +148,7 @@ export function DashboardPage() {
       try {
         const res = await api.search.emails(search.trim(), 0, 50);
         setSearchResults(res.hits);
+        setSearchDegraded(res.degraded === true);
       } catch {
         setSearchResults([]);
       } finally {
@@ -190,9 +192,14 @@ export function DashboardPage() {
     return (
       <div className="text-xs text-ink-300">
         {searchResults.length} match{searchResults.length === 1 ? "" : "es"} for “{search}”
+        {searchDegraded && (
+          <span className="ml-2 rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-amber-300">
+            basic search — Elasticsearch offline
+          </span>
+        )}
       </div>
     );
-  }, [searchingResult, searching, searchResults, search]);
+  }, [searchingResult, searching, searchResults, search, searchDegraded]);
 
   return (
     <div className="min-h-full">

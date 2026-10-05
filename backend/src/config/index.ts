@@ -6,6 +6,21 @@ dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 dotenv.config();
 
 /**
+ * True on a real deployment. NODE_ENV is not always set by PaaS providers, so
+ * the presence of a platform host var is treated as production too.
+ */
+function isDeployed(): boolean {
+  return (
+    process.env.NODE_ENV === "production" ||
+    Boolean(process.env.RENDER_EXTERNAL_URL ?? process.env.RENDER_EXTERNAL_HOSTNAME)
+  );
+}
+
+function isLocalOrigin(url: string): boolean {
+  return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(url.trim());
+}
+
+/**
  * The public origin this process is reachable at. Render (and most PaaS
  * providers) expose it as a well-known var; falls back to BACKEND_URL.
  */
@@ -16,6 +31,20 @@ function publicOrigin(): string {
     process.env.BACKEND_URL ??
     "http://localhost:4000";
   return candidate.startsWith("http") ? candidate : `https://${candidate}`;
+}
+
+/**
+ * A localhost URL is never a valid deployment value: it sends the browser off
+ * the deployed host after sign-in. Ignore it when deployed and derive the real
+ * origin instead, so a stale env var cannot break OAuth.
+ */
+function publicUrl(explicit: string | undefined): string {
+  if (explicit && !(isDeployed() && isLocalOrigin(explicit))) return explicit.trim();
+  return publicOrigin();
+}
+
+function callbackUri(explicit: string | undefined, path: string): string {
+  return `${publicUrl(explicit) ?? publicOrigin()}${path}`;
 }
 
 function required(name: string, fallback?: string): string {
@@ -33,8 +62,8 @@ export const config = {
 
   // Deployed builds serve the built SPA from this same process, so the public
   // origin is the right default for both. Local dev overrides these.
-  frontendUrl: process.env.FRONTEND_URL ?? publicOrigin(),
-  backendUrl: process.env.BACKEND_URL ?? publicOrigin(),
+  frontendUrl: publicUrl(process.env.FRONTEND_URL),
+  backendUrl: publicUrl(process.env.BACKEND_URL),
 
   redis: {
     url: process.env.REDIS_URL ?? "redis://localhost:6379",
@@ -78,14 +107,14 @@ export const config = {
   auth: {
     googleClientId: process.env.GOOGLE_CLIENT_ID,
     googleClientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    googleRedirectUri: process.env.GOOGLE_REDIRECT_URI ?? `${publicOrigin()}/api/auth/google/callback`,
+    googleRedirectUri: callbackUri(process.env.GOOGLE_REDIRECT_URI, "/api/auth/google/callback"),
     jwtSecret: required("JWT_SECRET", "dev-secret-change-me"),
   },
 
   slack: {
     clientId: process.env.SLACK_CLIENT_ID,
     clientSecret: process.env.SLACK_CLIENT_SECRET,
-    redirectUri: process.env.SLACK_REDIRECT_URI ?? `${publicOrigin()}/api/slack/oauth/callback`,
+    redirectUri: callbackUri(process.env.SLACK_REDIRECT_URI, "/api/slack/oauth/callback"),
     channel: process.env.SLACK_CHANNEL ?? "#reachinbox-alerts",
     signSecret: process.env.SLACK_SIGNING_SECRET,
   },

@@ -7,7 +7,7 @@ import { createBullBoard } from "@bull-board/api";
 import { BullMQAdapter } from "@bull-board/api/bullMQAdapter";
 import { ExpressAdapter } from "@bull-board/express";
 import { getEmailQueue } from "./queue/emailQueue";
-import { config } from "./config";
+import { config, frontendOrigins } from "./config";
 import authRoutes from "./routes/auth.routes";
 import emailRoutes from "./routes/email.routes";
 import searchRoutes from "./routes/search.routes";
@@ -28,7 +28,7 @@ export function createApp(): Express {
     cors({
       // FRONTEND_URL may be a comma-separated allowlist so preview deployments
       // (e.g. Vercel's per-commit subdomains) are not blocked by CORS.
-      origin: config.frontendUrl.split(",").map((o) => o.trim()).filter(Boolean),
+      origin: frontendOrigins,
       credentials: true,
     })
   );

@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { requireAuth } from "../middleware/auth.middleware";
-import { config } from "../config";
+import { config, frontendOrigin } from "../config";
 import {
   buildSlackAuthUrl,
   exchangeCodeForToken,
@@ -47,23 +47,23 @@ router.get("/oauth/callback", async (req: Request, res: Response) => {
   const parsed = verifySlackState(state);
 
   if (!parsed) {
-    return res.redirect(`${config.frontendUrl}/dashboard?slack=error`);
+    return res.redirect(`${frontendOrigin}/dashboard?slack=error`);
   }
 
   try {
     const tokenData = await exchangeCodeForToken(code);
     if (!tokenData.ok) {
       logError("slack", "token exchange failed", { error: tokenData.error });
-      return res.redirect(`${config.frontendUrl}/dashboard?slack=error`);
+      return res.redirect(`${frontendOrigin}/dashboard?slack=error`);
     }
     // Prefer the channel the user installed the app into (req scopes ask for it);
     // fall back to the configured default channel.
     const channel = config.slack.channel ?? "#general";
     await saveIntegration(parsed.sub, tokenData, channel);
-    res.redirect(`${config.frontendUrl}/dashboard?slack=connected`);
+    res.redirect(`${frontendOrigin}/dashboard?slack=connected`);
   } catch (err) {
     logError("slack", "oauth callback failed", err);
-    res.redirect(`${config.frontendUrl}/dashboard?slack=error`);
+    res.redirect(`${frontendOrigin}/dashboard?slack=error`);
   }
 });
 

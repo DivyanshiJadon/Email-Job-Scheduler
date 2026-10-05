@@ -127,3 +127,15 @@ export const config = {
 };
 
 export type AppConfig = typeof config;
+
+/** Normalized origins accepted by CORS, in order. */
+export const frontendOrigins: string[] = config.frontendUrl
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+/**
+ * The single origin to send browsers to. Redirects must never interpolate the
+ * whole allowlist, since that would build URLs like "a,b/auth".
+ */
+export const frontendOrigin: string = frontendOrigins[0] ?? config.backendUrl;

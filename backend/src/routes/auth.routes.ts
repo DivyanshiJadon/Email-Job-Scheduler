@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from "express";
 import passport from "passport";
-import { config } from "../config";
+import { frontendOrigin } from "../config";
 import { googleOAuthConfigured, signToken } from "../services/auth.service";
 import { requireAuth } from "../middleware/auth.middleware";
 
@@ -10,7 +10,7 @@ const googleScopes: Array<"profile" | "email"> = ["profile", "email"];
 
 router.get("/google", (req, res, next) => {
   if (!googleOAuthConfigured()) {
-    return res.redirect(`${config.frontendUrl}/login?error=not_configured`);
+    return res.redirect(`${frontendOrigin}/login?error=not_configured`);
   }
   passport.authenticate("google", {
     scope: googleScopes,
@@ -28,17 +28,17 @@ router.get(
       (err: Error | null, user?: Express.User) => {
         if (err) {
           console.error("[auth] google callback error:", err.message);
-          return res.redirect(`${config.frontendUrl}/login?error=google_failed`);
+          return res.redirect(`${frontendOrigin}/login?error=google_failed`);
         }
         if (!user) {
-          return res.redirect(`${config.frontendUrl}/login?error=google_denied`);
+          return res.redirect(`${frontendOrigin}/login?error=google_denied`);
         }
         try {
           const token = signToken(user as never);
-          return res.redirect(`${config.frontendUrl}/auth?token=${encodeURIComponent(token)}`);
+          return res.redirect(`${frontendOrigin}/auth?token=${encodeURIComponent(token)}`);
         } catch (signErr) {
           console.error("[auth] token signing error:", (signErr as Error).message);
-          return res.redirect(`${config.frontendUrl}/login?error=google_failed`);
+          return res.redirect(`${frontendOrigin}/login?error=google_failed`);
         }
       }
     )(req, res, next);

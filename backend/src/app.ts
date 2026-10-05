@@ -21,7 +21,9 @@ export function createApp(): Express {
 
   app.use(
     cors({
-      origin: config.frontendUrl,
+      // FRONTEND_URL may be a comma-separated allowlist so preview deployments
+      // (e.g. Vercel's per-commit subdomains) are not blocked by CORS.
+      origin: config.frontendUrl.split(",").map((o) => o.trim()).filter(Boolean),
       credentials: true,
     })
   );

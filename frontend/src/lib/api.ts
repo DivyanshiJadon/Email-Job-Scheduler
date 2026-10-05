@@ -58,6 +58,18 @@ interface RequestOptions {
   auth?: boolean;
 }
 
+/**
+ * Where the API lives. Defaults to same-origin "/api", which is correct when
+ * one process serves both the built SPA and the API. Set VITE_API_BASE to the
+ * API origin (e.g. https://api.example.com/api) when the frontend is hosted
+ * separately, such as on Vercel.
+ */
+const API_BASE = (import.meta.env.VITE_API_BASE ?? "/api").replace(/\/$/, "");
+
+export function apiUrl(path: string): string {
+  return `${API_BASE}${path}`;
+}
+
 async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
   const { method = "GET", body, query, auth = true } = opts;
   const params = query
@@ -75,7 +87,7 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
     if (token) headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const res = await fetch(`/api${path}${params}`, {
+  const res = await fetch(apiUrl(`${path}${params}`), {
     method,
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -100,7 +112,7 @@ export const api = {
   auth: {
     login(): void {
       // Full browser redirect to the real Google OAuth flow.
-      window.location.assign("/api/auth/google");
+      window.location.assign(apiUrl("/auth/google"));
     },
     me(): Promise<UserResponse> {
       return request<UserResponse>("/auth/me");

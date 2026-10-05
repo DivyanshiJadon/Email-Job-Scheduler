@@ -6,6 +6,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from "typeorm";
+import { dateTimeType } from "../columnTypes";
 
 @Entity("users")
 export class User {
@@ -26,9 +27,9 @@ export class User {
   @Column({ type: "varchar", length: 500, nullable: true })
   avatarUrl: string | null;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: dateTimeType })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ type: dateTimeType })
   updatedAt: Date;
 }

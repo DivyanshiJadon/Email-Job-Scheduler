@@ -179,6 +179,7 @@ npm run dev
 | `FRONTEND_URL` | http://localhost:5173 | OAuth redirect target |
 | `REDIS_URL` | redis://localhost:6379 | BullMQ + counters |
 | `DB_HOST/DB_PORT/DB_USER/DB_PASSWORD/DB_NAME` | localhost/3307/reachinbox/... | MySQL |
+| `DB_SSL` | false | set `true` for managed MySQL (Aiven etc.) that requires TLS |
 | `ELASTICSEARCH_URL` | http://localhost:9200 | search index |
 | `ELASTICSEARCH_INDEX` | reachinbox_emails | index name |
 | **Scheduler** | | |

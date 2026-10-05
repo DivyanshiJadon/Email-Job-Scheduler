@@ -49,7 +49,20 @@ export async function provisionSenderPool(size: number): Promise<Mailbox[]> {
 
   const cached = readCache();
   const uniq = (m: Mailbox) => m.user;
-  const deduped = Array.from(new Map(cached.map((m) => [uniq(m), m])).values());
+  const deduped = Array.from(new Map(cached.map((m) => [uniq(m), m])).values()).filter(
+    (m) => !(config.smtp.host && config.smtp.user && config.smtp.pass),
+  );
+  // Ethereal accounts expire after a while, so a cached mailbox can 535 on the
+  // next send. Verify each one and drop the dead ones before reuse, otherwise a
+  // stale cache fails every send until the file is deleted by hand.
+  const live: Mailbox[] = [];
+  for (const mailbox of deduped) {
+    if (await verifyMailbox(mailbox)) live.push(mailbox);
+    else logWarn("ethereal", `cached account ${mailbox.email} rejected by SMTP; provisioning a replacement`);
+  }
+  deduped.length = 0;
+  deduped.push(...live);
+
   const need = size - deduped.length;
   if (need > 0) {
     logInfo("ethereal", `provisioning ${need} new Ethereal account(s)`);
@@ -86,6 +99,27 @@ export async function provisionSenderPool(size: number): Promise<Mailbox[]> {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Cheap SMTP login check, used to evict expired cached Ethereal accounts. */
+export async function verifyMailbox(mailbox: Mailbox): Promise<boolean> {
+  const transporter = nodemailer.createTransport({
+    host: mailbox.host,
+    port: mailbox.port,
+    secure: false,
+    auth: { user: mailbox.user, pass: mailbox.pass },
+    tls: { rejectUnauthorized: false },
+    connectionTimeout: 15000,
+    greetingTimeout: 15000,
+  });
+  try {
+    await transporter.verify();
+    return true;
+  } catch {
+    return false;
+  } finally {
+    transporter.close();
+  }
 }
 
 export function getMailboxUrl(mailbox: Mailbox, messageId: string): string {

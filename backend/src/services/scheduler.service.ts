@@ -5,7 +5,7 @@ import { EmailJob } from "../db/entities/EmailJob";
 import { Sender } from "../db/entities/Sender";
 import { config } from "../config";
 import { enqueueEmail, getEmailQueue, queueHasJob, createQueueJobId } from "../queue/emailQueue";
-import { Mailbox, provisionSenderPool } from "./ethereal.service";
+import { Mailbox, provisionSenderPool, verifyMailbox } from "./ethereal.service";
 import { indexEmailJob } from "./elastic.service";
 import { logInfo, logWarn } from "../utils/logger";
 
@@ -36,7 +36,27 @@ export interface ScheduleBatchResult {
 export async function ensureSenders(count = 3): Promise<Sender[]> {
   const repo = AppDataSource.getRepository(Sender);
   let senders = await repo.find({ order: { createdAt: "ASC" } });
-  if (senders.length >= count) return senders;
+
+  // Ethereal accounts expire, so a sender row can hold credentials the SMTP
+  // server now rejects. Verify them and replace the dead ones instead of
+  // returning early purely on row count, which would keep 535-ing forever.
+  if (senders.length > 0) {
+    const dead: Sender[] = [];
+    for (const sender of senders) {
+      const mailbox = decodeSmtpConfig(sender);
+      if (!mailbox || !(await verifyMailbox(mailbox))) dead.push(sender);
+    }
+    if (dead.length > 0) {
+      logWarn(
+        "scheduler",
+        `${dead.length} stored sender(s) no longer authenticate; replacing them`,
+        dead.map((s) => s.email)
+      );
+      await repo.remove(dead);
+      senders = senders.filter((s) => !dead.includes(s));
+    }
+    if (senders.length >= count) return senders;
+  }
 
   const mailboxes = await provisionSenderPool(count);
   const existing = new Set(senders.map((s) => s.email.toLowerCase()));

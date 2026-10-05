@@ -6,6 +6,7 @@ import {
   PrimaryColumn,
   UpdateDateColumn,
 } from "typeorm";
+import { dateTimeType, longTextType } from "../columnTypes";
 
 export type EmailJobStatus = "scheduled" | "processing" | "sent" | "failed" | "deferred";
 
@@ -34,7 +35,7 @@ export class EmailJob {
   @Column({ type: "text" })
   subject: string;
 
-  @Column({ type: "longtext" })
+  @Column({ type: longTextType })
   body: string;
 
   @Index()
@@ -42,10 +43,10 @@ export class EmailJob {
   status: EmailJobStatus;
 
   @Index()
-  @Column({ type: "datetime" })
+  @Column({ type: dateTimeType })
   scheduledAt: Date;
 
-  @Column({ type: "datetime", nullable: true })
+  @Column({ type: dateTimeType, nullable: true })
   sentAt: Date | null;
 
   @Column({ type: "text", nullable: true })
@@ -70,9 +71,9 @@ export class EmailJob {
   @Column({ type: "varchar", length: 500, nullable: true })
   providerMessageId: string | null;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: dateTimeType })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ type: dateTimeType })
   updatedAt: Date;
 }

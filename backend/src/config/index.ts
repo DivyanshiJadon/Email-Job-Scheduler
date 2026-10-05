@@ -26,8 +26,10 @@ export const config = {
   },
 
   db: {
+    /** "mysql" (default) or "postgres" — picked from the managed DB provider. */
+    client: (process.env.DB_CLIENT ?? "mysql") as "mysql" | "postgres",
     host: process.env.DB_HOST ?? "localhost",
-    port: parseInt(process.env.DB_PORT ?? "3307", 10),
+    port: parseInt(process.env.DB_PORT ?? (process.env.DB_CLIENT === "postgres" ? "5432" : "3307"), 10),
     user: process.env.DB_USER ?? "reachinbox",
     password: process.env.DB_PASSWORD ?? "reachinbox",
     database: process.env.DB_NAME ?? "reachinbox",

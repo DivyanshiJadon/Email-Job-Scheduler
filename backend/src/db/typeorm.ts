@@ -6,8 +6,15 @@ import { Sender } from "./entities/Sender";
 import { EmailJob } from "./entities/EmailJob";
 import { SlackIntegration } from "./entities/SlackIntegration";
 
+/**
+ * MySQL and Postgres differ in connection options and charset handling, so the
+ * driver is selected via `DB_CLIENT`. Column types that differ are resolved in
+ * `./columnTypes`.
+ */
+const postgres = config.db.client === "postgres";
+
 export const AppDataSource = new DataSource({
-  type: "mysql",
+  type: postgres ? "postgres" : "mysql",
   host: config.db.host,
   port: config.db.port,
   username: config.db.user,
@@ -16,8 +23,7 @@ export const AppDataSource = new DataSource({
   ...(config.db.ssl ? { ssl: { rejectUnauthorized: false } } : {}),
   entities: [User, Sender, EmailJob, SlackIntegration],
   synchronize: true,
-  charset: "utf8mb4_unicode_ci",
-  timezone: "Z",
+  ...(postgres ? {} : { charset: "utf8mb4_unicode_ci", timezone: "Z" }),
   logging: process.env.DB_LOGGING === "true",
 });
 

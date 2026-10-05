@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   redis:
     image: redis:7-alpine
@@ -24,6 +22,9 @@ services:
       - es-data:/usr/share/elasticsearch/data
     restart: unless-stopped
 
+  # MySQL is the default driver (DB_CLIENT=mysql). To try Postgres locally
+  # instead: docker compose --profile postgres up -d, then set
+  # DB_CLIENT=postgres, DB_HOST=localhost, DB_PORT=5433 in backend/.env.local.
   mysql:
     image: mysql:8.4
     container_name: reachinbox-mysql
@@ -39,7 +40,22 @@ services:
       - mysql-data:/var/lib/mysql
     restart: unless-stopped
 
+  postgres:
+    image: postgres:16-alpine
+    container_name: reachinbox-postgres
+    profiles: ["postgres"]
+    environment:
+      - POSTGRES_DB=reachinbox
+      - POSTGRES_USER=reachinbox
+      - POSTGRES_PASSWORD=reachinbox
+    ports:
+      - "5433:5432"
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    restart: unless-stopped
+
 volumes:
   redis-data:
   es-data:
   mysql-data:
+  pg-data:

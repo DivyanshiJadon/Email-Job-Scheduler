@@ -6,6 +6,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from "typeorm";
+import { dateTimeType } from "../columnTypes";
 
 @Entity("senders")
 export class Sender {
@@ -32,9 +33,9 @@ export class Sender {
   @Column({ type: "boolean", default: true })
   active: boolean;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: dateTimeType })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ type: dateTimeType })
   updatedAt: Date;
 }

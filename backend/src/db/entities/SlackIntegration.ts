@@ -6,6 +6,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from "typeorm";
+import { dateTimeType } from "../columnTypes";
 
 @Entity("slack_integrations")
 export class SlackIntegration {
@@ -34,9 +35,9 @@ export class SlackIntegration {
   @Column({ type: "boolean", default: true })
   active: boolean;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: dateTimeType })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ type: dateTimeType })
   updatedAt: Date;
 }

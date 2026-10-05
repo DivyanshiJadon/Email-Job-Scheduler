@@ -31,6 +31,14 @@ async function bootstrap(): Promise<void> {
   cleanupExpiredRows();
 
   const app = createApp();
+  logInfo("boot", `public urls frontend=${config.frontendUrl} backend=${config.backendUrl}`);
+  logInfo("boot", `google oauth callback=${config.auth.googleRedirectUri ?? "not configured"}`);
+  if (config.env === "production" && /^(https?:\/\/)?(localhost|127\.0\.0\.1)/.test(config.frontendUrl)) {
+    logError(
+      "boot",
+      `FRONTEND_URL points at localhost (${config.frontendUrl}); sign-in will redirect off-site. Set FRONTEND_URL to the public URL.`,
+    );
+  }
   app.listen(config.port, () => {
     logInfo("boot", `API listening on http://localhost:${config.port}`);
     logInfo("boot", `BullMQ dashboard: http://localhost:${config.port}/admin/queues`);

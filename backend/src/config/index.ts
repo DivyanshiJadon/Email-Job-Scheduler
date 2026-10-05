@@ -5,6 +5,19 @@ dotenv.config({ path: path.resolve(__dirname, "../../.env.local") });
 dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 dotenv.config();
 
+/**
+ * The public origin this process is reachable at. Render (and most PaaS
+ * providers) expose it as a well-known var; falls back to BACKEND_URL.
+ */
+function publicOrigin(): string {
+  const candidate =
+    process.env.RENDER_EXTERNAL_URL ??
+    process.env.RENDER_EXTERNAL_HOSTNAME ??
+    process.env.BACKEND_URL ??
+    "http://localhost:4000";
+  return candidate.startsWith("http") ? candidate : `https://${candidate}`;
+}
+
 function required(name: string, fallback?: string): string {
   const val = process.env[name] ?? fallback;
   if (val === undefined) {
@@ -18,8 +31,10 @@ export const config = {
 
   port: parseInt(process.env.PORT ?? "4000", 10),
 
-  frontendUrl: process.env.FRONTEND_URL ?? "http://localhost:5173",
-  backendUrl: process.env.BACKEND_URL ?? "http://localhost:4000",
+  // Deployed builds serve the built SPA from this same process, so the public
+  // origin is the right default for both. Local dev overrides these.
+  frontendUrl: process.env.FRONTEND_URL ?? publicOrigin(),
+  backendUrl: process.env.BACKEND_URL ?? publicOrigin(),
 
   redis: {
     url: process.env.REDIS_URL ?? "redis://localhost:6379",
@@ -63,15 +78,14 @@ export const config = {
   auth: {
     googleClientId: process.env.GOOGLE_CLIENT_ID,
     googleClientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    googleRedirectUri:
-      process.env.GOOGLE_REDIRECT_URI ?? `${process.env.BACKEND_URL ?? "http://localhost:4000"}/api/auth/google/callback`,
+    googleRedirectUri: process.env.GOOGLE_REDIRECT_URI ?? `${publicOrigin()}/api/auth/google/callback`,
     jwtSecret: required("JWT_SECRET", "dev-secret-change-me"),
   },
 
   slack: {
     clientId: process.env.SLACK_CLIENT_ID,
     clientSecret: process.env.SLACK_CLIENT_SECRET,
-    redirectUri: process.env.SLACK_REDIRECT_URI ?? `${process.env.BACKEND_URL ?? "http://localhost:4000"}/api/slack/oauth/callback`,
+    redirectUri: process.env.SLACK_REDIRECT_URI ?? `${publicOrigin()}/api/slack/oauth/callback`,
     channel: process.env.SLACK_CHANNEL ?? "#reachinbox-alerts",
     signSecret: process.env.SLACK_SIGNING_SECRET,
   },

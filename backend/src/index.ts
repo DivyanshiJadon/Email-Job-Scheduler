@@ -1,10 +1,10 @@
 import "reflect-metadata";
-import { createApp } from "./app";
+import { createApp, servesFrontend } from "./app";
 import { initDb } from "./db/typeorm";
 import { setupPassport } from "./services/auth.service";
 import { ensureSenders, getCachedSenders, reconcileQueueOnStartup, cleanupExpiredRows } from "./services/scheduler.service";
 import { ensureIndex } from "./services/elastic.service";
-import { config } from "./config";
+import { config, isLocalOrigin } from "./config";
 import { logInfo, logError } from "./utils/logger";
 
 async function bootstrap(): Promise<void> {
@@ -33,15 +33,37 @@ async function bootstrap(): Promise<void> {
   const app = createApp();
   logInfo("boot", `public urls frontend=${config.frontendUrl} backend=${config.backendUrl}`);
   logInfo("boot", `google oauth callback=${config.auth.googleRedirectUri ?? "not configured"}`);
-  if (config.env === "production" && /^(https?:\/\/)?(localhost|127\.0\.0\.1)/.test(config.frontendUrl)) {
+
+  const primaryFrontend = config.frontendUrl.split(",")[0].trim();
+  const hostOf = (url: string): string | null => {
+    try {
+      return new URL(url).host;
+    } catch {
+      return null;
+    }
+  };
+
+  if (isLocalOrigin(primaryFrontend)) {
     logError(
       "boot",
-      `FRONTEND_URL points at localhost (${config.frontendUrl}); sign-in will redirect off-site. Set FRONTEND_URL to the public URL.`,
+      `FRONTEND_URL points at localhost (${primaryFrontend}); sign-in will redirect off-site. Set FRONTEND_URL to the public URL.`
+    );
+  } else if (
+    servesFrontend() &&
+    hostOf(primaryFrontend) !== null &&
+    hostOf(primaryFrontend) !== hostOf(config.backendUrl)
+  ) {
+    logError(
+      "boot",
+      `This process serves the built SPA at ${config.backendUrl}, but FRONTEND_URL is ${primaryFrontend}. Sign-in will redirect to ${primaryFrontend}. Unset FRONTEND_URL to use this host.`
     );
   }
+
+  // app.listen without a host binds every interface, so the port is reachable
+  // from outside the container; the log reports the URL that actually works.
   app.listen(config.port, () => {
-    logInfo("boot", `API listening on http://localhost:${config.port}`);
-    logInfo("boot", `BullMQ dashboard: http://localhost:${config.port}/admin/queues`);
+    logInfo("boot", `API listening on port ${config.port}, reachable at ${config.backendUrl}`);
+    logInfo("boot", `BullMQ dashboard: ${config.backendUrl}/admin/queues`);
   });
 }
 

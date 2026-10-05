@@ -8,7 +8,7 @@ export function logInfo(scope: string, message: string, data?: unknown): void {
 export function logError(scope: string, message: string, err?: unknown): void {
   console.error(
     `[${new Date().toISOString()}] [${scope}] ERROR: ${message}`,
-    err instanceof Error ? err.stack ?? err.message : err
+    err === undefined ? "" : err instanceof Error ? err.stack ?? err.message : String(err)
   );
 }
 

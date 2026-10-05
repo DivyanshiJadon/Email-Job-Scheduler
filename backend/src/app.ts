@@ -16,6 +16,11 @@ import slackRoutes from "./routes/slack.routes";
 /** Built React app, if present (shared hosting with the API, same origin). */
 const frontendDist = path.resolve(__dirname, "../../frontend/dist");
 
+/** True when this process also serves the built SPA, making it same-origin. */
+export function servesFrontend(): boolean {
+  return fs.existsSync(frontendDist);
+}
+
 export function createApp(): Express {
   const app = express();
 

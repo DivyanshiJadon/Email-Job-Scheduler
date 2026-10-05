@@ -16,8 +16,14 @@ function isDeployed(): boolean {
   );
 }
 
-function isLocalOrigin(url: string): boolean {
-  return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(url.trim());
+export function isLocalOrigin(url: string): boolean {
+  return /^(https?:\/\/)?(localhost|127\.0\.0\.1)(:\d+)?/i.test(url.trim());
+}
+
+/** Env values are often pasted without a scheme; CORS and redirects need one. */
+function withScheme(url: string): string {
+  const value = url.trim();
+  return /^https?:\/\//i.test(value) ? value : `https://${value}`;
 }
 
 /**
@@ -30,7 +36,7 @@ function publicOrigin(): string {
     process.env.RENDER_EXTERNAL_HOSTNAME ??
     process.env.BACKEND_URL ??
     "http://localhost:4000";
-  return candidate.startsWith("http") ? candidate : `https://${candidate}`;
+  return withScheme(candidate);
 }
 
 /**
@@ -39,7 +45,7 @@ function publicOrigin(): string {
  * origin instead, so a stale env var cannot break OAuth.
  */
 function publicUrl(explicit: string | undefined): string {
-  if (explicit && !(isDeployed() && isLocalOrigin(explicit))) return explicit.trim();
+  if (explicit && !(isDeployed() && isLocalOrigin(explicit))) return withScheme(explicit);
   return publicOrigin();
 }
 
